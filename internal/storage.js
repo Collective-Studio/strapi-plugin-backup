@@ -9,7 +9,7 @@ const StorageService = {
 class AbstractStorage {
 
   /** @return {Promise} */
-  put(content, filename) {
+  async put(content, filename) {
     throw new Error('Method put not implemented');
   }
 
@@ -63,24 +63,52 @@ class AwsS3 extends AbstractStorage {
     this.#bucket = bucket;
   }
 
-  put(content, filename) {
-    return new Promise((resolve, reject) => {
-      this.#s3.putObject(
-        {
-          Bucket: this.#bucket,
-          Key: filename,
-          Body: content
-        },
-        function (error) {
-          if (error) {
-            reject(error);
-            return;
-          }
+  async put(content, filename) {
+    const { buffer: bufferTool } = require('node:stream/consumers');
 
-          resolve();
-        }
+    const S3 = this.#s3
+    const Bucket = this.#bucket
+    const multipartUpload = await S3.createMultipartUpload({
+      Bucket, Key: filename
+    }).promise()
+
+    const uploadId = multipartUpload.UploadId
+    if (!uploadId) {
+      return reject("Failed to create multipart upload")
+    }
+
+    const buffer = await bufferTool(content)
+    const uploadPromises = [];
+    const PART_SIZE = 5 * 1024 * 1024;
+    // Multipart uploads with 5 MB per part.
+    const numberOfPart = Math.ceil(buffer.length / PART_SIZE);
+    for (let i = 0; i < numberOfPart; i++) {
+      const start = i * PART_SIZE;
+      let end = start + PART_SIZE;
+      if (i === numberOfPart - 1) {
+        end = buffer.length
+      }
+      uploadPromises.push(
+        S3.uploadPart({ Bucket, Key: filename, UploadId: uploadId, PartNumber: i + 1, Body: buffer.subarray(start, end) }).promise()
       );
-    });
+    }
+    const uploadResults = await Promise.all(uploadPromises);
+
+    const multipartComplete = await S3.completeMultipartUpload({
+      Bucket,
+      Key: filename,
+      UploadId: uploadId,
+      MultipartUpload: {
+        Parts: uploadResults.map((part, index) => ({
+          ETag: part.ETag,
+          PartNumber: index + 1
+        }))
+      }
+    }).promise()
+    if (multipartComplete.ETag) {
+      return resolve()
+    }
+    return reject("Failed to upload file")
   }
 
   list() {
