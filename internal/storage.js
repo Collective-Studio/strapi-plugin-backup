@@ -45,6 +45,8 @@ class AwsS3 extends AbstractStorage {
       apiVersion: 'latest',
       accessKeyId: key,
       secretAccessKey: secret,
+      // To-do: add this to confugurable options
+      s3ForcePathStyle: true
     };
 
     if (region !== undefined) {
