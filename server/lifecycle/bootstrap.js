@@ -6,6 +6,10 @@ const {
   tmpDir
 } = require('../../internal/utils');
 
+const {
+  createBackupFilenameFromPrefixAndDate
+} = require('../backend/services/utils');
+
 const RUN_ON_BOOT = true
 
 module.exports = async ({ strapi }) => {
