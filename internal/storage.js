@@ -76,7 +76,7 @@ class AwsS3 extends AbstractStorage {
 
     const uploadId = multipartUpload.UploadId
     if (!uploadId) {
-      return reject("Failed to create multipart upload")
+      return new Error("Failed to create multipart upload")
     }
 
     const buffer = await bufferTool(content)
@@ -109,9 +109,9 @@ class AwsS3 extends AbstractStorage {
     }).promise()
     console.log(multipartComplete)
     if (multipartComplete.ETag) {
-      return resolve("")
+      return
     }
-    return reject("Failed to upload file")
+    return new Error("Failed to upload file")
   }
 
   list() {
