@@ -107,8 +107,9 @@ class AwsS3 extends AbstractStorage {
         }))
       }
     }).promise()
+    console.log(multipartComplete)
     if (multipartComplete.ETag) {
-      return resolve()
+      return resolve("")
     }
     return reject("Failed to upload file")
   }
