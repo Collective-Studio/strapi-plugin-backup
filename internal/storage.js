@@ -8,6 +8,12 @@ const StorageService = {
   GCS: 'gcs'
 };
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 class AbstractStorage {
 
   /** @return {Promise} */
@@ -90,7 +96,6 @@ class AwsS3 extends AbstractStorage {
       console.log("New number of parts: ", numberOfPart, " with size factor: ", SIZE_FACTOR, " and part size: ", PART_SIZE)
     }
     const stream = fs.createReadStream(filePath, { highWaterMark: PART_SIZE })
-
 
     const multipartUpload = await S3.createMultipartUpload({
       Bucket, Key
