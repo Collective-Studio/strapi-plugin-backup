@@ -36,7 +36,7 @@ module.exports = ({ strapi }) => {
       createArchive(filePath, tmpArchiveFilePath)
         .then(() => {
           return storageService.put(
-            fs.createReadStream(tmpArchiveFilePath),
+            tmpArchiveFilePath,
             `${backupFilename}.tar.gz`
           );
         })

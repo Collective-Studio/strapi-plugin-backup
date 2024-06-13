@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require("fs");
+
 const StorageService = {
   AWS_S3: 'aws-s3',
   AZURE_BLOB_STORAGE: 'azure-blob-storage',
@@ -65,45 +67,94 @@ class AwsS3 extends AbstractStorage {
     this.#bucket = bucket;
   }
 
-  async put(content, filename) {
-    const { buffer: bufferTool } = require('node:stream/consumers');
-
+  async put(filePath, filename) {
     const S3 = this.#s3
     const Bucket = this.#bucket
+    const Key = filename
+
+    const stats = fs.statSync(filePath);
+    const fileSize = stats.size;
+    // console.log("File size in bytes", fileSize)
+
+    const MAX_PARTS = 400
+    let SIZE_FACTOR = 1
+    let PART_SIZE = 5 * SIZE_FACTOR * 1024 * 1024;
+
+    // Multipart uploads with default 5 MB per part.
+    let numberOfPart = Math.ceil(fileSize / PART_SIZE);
+    console.log("Original number of parts: ", numberOfPart)
+    if (numberOfPart > MAX_PARTS) {
+      SIZE_FACTOR = Math.ceil(numberOfPart / MAX_PARTS)
+      PART_SIZE = PART_SIZE * SIZE_FACTOR
+      numberOfPart = Math.ceil(numberOfPart / SIZE_FACTOR)
+      console.log("New number of parts: ", numberOfPart, " with size factor: ", SIZE_FACTOR, " and part size: ", PART_SIZE)
+    }
+    const stream = fs.createReadStream(filePath, { highWaterMark: PART_SIZE })
+
+
     const multipartUpload = await S3.createMultipartUpload({
-      Bucket, Key: filename
+      Bucket, Key
     }).promise()
 
     const uploadId = multipartUpload.UploadId
+    // console.log("uploadId", uploadId)
     if (!uploadId) {
       return new Error("Failed to create multipart upload")
     }
 
-    const buffer = await bufferTool(content)
-    const uploadPromises = [];
-    const PART_SIZE = 5 * 1024 * 1024;
-    // Multipart uploads with 5 MB per part.
-    const numberOfPart = Math.ceil(buffer.length / PART_SIZE);
-    for (let i = 0; i < numberOfPart; i++) {
-      const start = i * PART_SIZE;
-      let end = start + PART_SIZE;
-      if (i === numberOfPart - 1) {
-        end = buffer.length
+    const start = Date.now()
+    // const uploadPromises: Promise<PromiseResult<AWS.S3.UploadPartOutput, AWS.AWSError>>[] = [];
+    const etagArray = []
+    let running = 0
+    let finished = 0
+
+    const NUMBER_OF_WORKERS = 16
+    for await (const data of stream) {
+      const tmpFinished = finished
+      const tmpRunning = running
+      running += 1
+
+      // console.log("current worker: ", running, " running: ", tmpFinished + tmpRunning, " finished: ", tmpFinished)
+      while (running >= NUMBER_OF_WORKERS) {
+        // console.log("Waiting for 2.5s")
+        await sleep(100);
       }
-      uploadPromises.push(
-        S3.uploadPart({ Bucket, Key: filename, UploadId: uploadId, PartNumber: i + 1, Body: buffer.subarray(start, end) }).promise()
-      );
+
+      // console.log("Creating part", tmpFinished + tmpRunning + 1, " with size: ", data.length)
+      S3.uploadPart({ Bucket, Key, UploadId: uploadId, PartNumber: tmpFinished + tmpRunning + 1, Body: data }).on("success", (response) => {
+        running -= 1
+        finished += 1
+        // console.log("Finished part", tmpFinished + tmpRunning + 1)
+        const etag = response.data?.ETag
+        if (etag) {
+          etagArray.push({ ETag: etag, PartNumber: tmpFinished + tmpRunning + 1 })
+        }
+      }).send()
+
+      await sleep(250)
     }
-    const uploadResults = await Promise.all(uploadPromises);
+
+    while (finished < numberOfPart && etagArray.length < numberOfPart) {
+      await sleep(100)
+    }
+    const end = Date.now()
+    console.log("Time taken: ", end - start)
+    // console.log("Finished all parts", etagArray)
+
+    // const uploadResults = await Promise.all(uploadPromises);
+    // console.log(uploadResults)
+
 
     const multipartComplete = await S3.completeMultipartUpload({
       Bucket,
-      Key: filename,
+      Key,
       UploadId: uploadId,
       MultipartUpload: {
-        Parts: uploadResults.map((part, index) => ({
+        Parts: etagArray.sort((a, b) => {
+          return a.PartNumber - b.PartNumber
+        }).map((part) => ({
           ETag: part.ETag,
-          PartNumber: index + 1
+          PartNumber: part.PartNumber
         }))
       }
     }).promise()
@@ -297,7 +348,7 @@ class GoogleCloudStorage extends AbstractStorage {
     let query = {};
 
     do {
-      let [ files, nextQuery ] = await this.#bucket.getFiles(query);
+      let [files, nextQuery] = await this.#bucket.getFiles(query);
 
       backups = backups.concat(
         files.map((file => ({
