@@ -17,9 +17,9 @@ const createArchive = (source, destination) => {
         {
           cwd: sourceFileIsDirectory ? source : source.split('/').slice(0, -1).join('/'),
           file: destination,
-          gzip: true
+          gzip: false
         },
-        sourceFileIsDirectory ? fs.readdirSync(source) : [ source.split('/').slice(-1)[0] ],
+        sourceFileIsDirectory ? fs.readdirSync(source) : [source.split('/').slice(-1)[0]],
         resolve
       );
 
