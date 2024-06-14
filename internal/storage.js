@@ -119,7 +119,7 @@ class AwsS3 extends AbstractStorage {
       const tmpRunning = running
       running += 1
 
-      // console.log("current worker: ", running, " running: ", tmpFinished + tmpRunning, " finished: ", tmpFinished)
+      console.log("current worker: ", running, " current part: ", tmpFinished + tmpRunning, " finished: ", tmpFinished)
       while (running >= NUMBER_OF_WORKERS) {
         // console.log("Waiting for 2.5s")
         await sleep(100);
