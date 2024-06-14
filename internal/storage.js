@@ -113,7 +113,7 @@ class AwsS3 extends AbstractStorage {
     let running = 0
     let finished = 0
 
-    const NUMBER_OF_WORKERS = 16
+    const NUMBER_OF_WORKERS = 8
     for await (const data of stream) {
       const tmpFinished = finished
       const tmpRunning = running
