@@ -32,12 +32,18 @@ module.exports = ({ strapi }) => {
   ) => {
     return new Promise((resolve, reject) => {
       const tmpArchiveFilePath = createTmpFilename();
+      const backupFolder = `${strapi.dirs.app.root}/backup`;
+      const backupFileName = `${backupFilename}.tar.gz`;
 
       createArchive(filePath, tmpArchiveFilePath)
         .then(() => {
+          fs.copyFile(tmpArchiveFilePath, `${backupFolder}/${backupFileName}`, (err) => {
+            if (err) throw err;
+            strapi.log.info(`backup file was copied to ${backupFolder}`);
+          })
           return storageService.put(
             tmpArchiveFilePath,
-            `${backupFilename}.tar.gz`
+            backupFileName
           );
         })
         .then(() => {
