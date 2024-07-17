@@ -174,6 +174,7 @@ const customValidatorByRequiredConfigKey = {
 
 module.exports = {
   default: ({env}) => ({
+    runOnBoot: false,
     disableUploadsBackup: false,
     disableDatabaseBackup: false,
     databaseDriver: env('DATABASE_CLIENT'),

@@ -17,11 +17,11 @@ module.exports = async ({ strapi }) => {
     fs.mkdirSync(tmpDir());
   }
 
-  if (RUN_ON_BOOT === true) {
-    const backupConfig = strapi.config.get('plugin.backup');
-    const backupService = strapi.plugin('backup').service('backup');
-    const backupLogService = strapi.plugin('backup').service('log');
+  const backupConfig = strapi.config.get('plugin.backup');
+  const backupService = strapi.plugin('backup').service('backup');
+  const backupLogService = strapi.plugin('backup').service('log');
 
+  if (backupConfig.runOnBoot === true) {
     const date = new Date();
 
     if (!backupConfig.disableUploadsBackup) {
