@@ -39,7 +39,7 @@ module.exports = ({ strapi }) => {
         .then(() => {
           fs.copyFile(tmpArchiveFilePath, `${backupFolder}/${backupFileName}`, (err) => {
             if (err) throw err;
-            strapi.log.info(`backup file was copied to ${backupFolder}`);
+            strapi.log.info(`File ${backupFileName} was copied to ${backupFolder}`);
           })
           return storageService.put(
             tmpArchiveFilePath,

@@ -21,6 +21,8 @@ module.exports = async ({ strapi }) => {
   const backupService = strapi.plugin('backup').service('backup');
   const backupLogService = strapi.plugin('backup').service('log');
 
+  strapi.log.info("Backup config: ", backupConfig);
+
   if (backupConfig.runOnBoot === true) {
     const date = new Date();
 
